@@ -1,0 +1,35 @@
+# base image
+FROM python:3.11-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# تثبيت أدوات ومكتبات نظام مطلوبة لتشغيل Chrome / chromedriver
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget ca-certificates gnupg2 unzip fonts-liberation \
+    libnss3 libxss1 libasound2 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
+    libx11-xcb1 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libxkbcommon0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# تثبيت Google Chrome stable
+RUN wget -q -O /tmp/google-chrome.deb "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" \
+    && apt-get update && apt-get install -y /tmp/google-chrome.deb --no-install-recommends \
+    && rm /tmp/google-chrome.deb \
+    && rm -rf /var/lib/apt/lists/*
+
+# العمل داخل المجلد /app
+WORKDIR /app
+
+# نسخ متطلبات المشروع وتثبيتها
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+# لو تستخدم webdriver-manager فهو سيحمل chromedriver عند التشغيل؛ لكن مُمكن نحسب المسار لاحقاً
+# انسخ الكود
+COPY . .
+
+# فتح البورت
+EXPOSE 5000
+
+# أمر التشغيل (gunicorn)
+CMD ["gunicorn", "app:app", "-b", "0.0.0.0:5000", "--threads", "2"]
